@@ -54,7 +54,7 @@ runs:
         echo "DEFAULT_LAST=\"${{ inputs.last }}\"" >> $GITHUB_ENV
       fi
   - name: Run Kiri
-    uses: docker://ghcr.io/usa-reddragon/kiri:v1.0.4
+    uses: docker://ghcr.io/usa-reddragon/kiri:v1.0.5
     env:
       KIRI_PROJECT_FILE: ${{ inputs.project-file }}
       KIRI_OUTPUT_DIR: ${{ inputs.output-dir }}
