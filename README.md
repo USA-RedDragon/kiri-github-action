@@ -1,85 +1,84 @@
 
-# Kiri Docker
+# Kiri Pull Request GitHub Action
 
-Kiri Docker is a convenient and easy way to run [Kiri](https://github.com/leoheck/kiri) pre-installed in a Ubuntu container.
+This is a convenient and easy way to run [Kiri](https://github.com/leoheck/kiri) against a Pull Request using GitHub Actions.
 
-> Kiri repo is not necessary to run Kiri Docker
+The base Kiri image is hosted in the GitHub Container Repository here <https://github.com/USA-RedDragon/kiri-github-action/pkgs/container/kiri>,
+which is based on the Kiri image at <https://github.com/leoheck/kiri-docker>
 
-Kiri Docker works by mounting the user's project from the host machine inside the container. This way, the output files are easily accessible from the host system making it simple to visualize using the host's browser.
+## PR HTML Preview Setup
 
-The existing kiri image is hosted in Docker Hub here https://hub.docker.com/r/leoheck/kiri/tags
+In order to provide PRs with a link to preview the changes, this action pushes to the `gh-pages` branch of the source
+repository and hosts the Kiri output in subdirectories.
 
-# Getting the existing docker image
+For this to work properly, you'll need to make an empty `gh-pages` branch with the file `.nojekyll` (to avoid `_KIRI_` folders returning a 404).
 
-The docker container can be donwloaded through this repo with:
+### Deleting PRs on close
 
-```bash
-gh repo clone leoheck/kiri-docker
-make docker_pull
+Running this action in the context of `pull_request.closed` will delete any Kiri previews that were made for the PR.
+
+## Action inputs
+
+All inputs are **optional**.
+
+|           Name           |                               Description                                |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `all`                    | If set, include all commits even if schematics/layout don't have changes |
+| `last`                   | Show last N commits                                                      |
+| `newer`                  | Show commits up to this one                                              |
+| `older`                  | Show commits starting from this one                                      |
+| `skip-cache`             | If set, skip usage of -cache.lib on plotgitsch                           |
+| `skip-kicad6-schematics` | If set, skip ploting Kicad 6 schematics (.kicad.sch)                     |
+| `force-layout-view`      | If set, force starting with the Layout view selected                     |
+| `pcb-page-frame`         | If set, disable page frame for PCB                                       |
+| `archive`                | If set, archive generated files                                          |
+| `remove`                 | If set, remove generated folder before running it                        |
+| `output-dir`             | If set, change output folder path/name                                   |
+| `project-file`           | Path to the KiCad project file                                           |
+| `extra-args`             | Extra arguments to pass to Kiri                                          |
+| `kiri-debug`             | If set, enable debugging output                                          |
+
+## Examples
+
+```yaml
+# .github/workflows/pr-kicad-diff.yaml
+name: KiCad Diff Check
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+    - '*.kicad_pcb'
+    - '*.kicad_sch'
+    - '*.kicad_pro'
+
+jobs:
+  kiri:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+    - name: Kiri
+      uses: usa-reddragon/kiri-github-action@v1
 ```
 
-Alternatively, you can pull the latest image file with:
-```bash
-docker pull leoheck/kiri:latest
-```
+```yaml
+# .github/workflows/pr-kicad-diff-delete.yaml
+name: KiCad Diff Delete
 
-# Building your own docker image
+on:
+  pull_request:
+    types:
+    - closed
 
-It is also possible to build the docker image yourself, if needed:
-
-```bash
-gh repo clone leoheck/kiri-docker
-cd kiri-docker
-make build
-```
-
-# Environment
-
-Download or build the docker image and then set your PATH to this repo with:
-
-```bash
-export PATH="$(pwd)/kiri-docker/"
-```
-
-# Using Kiri Docker
-
-To run kiri on your Kicad project repository:
-
-```bash
-kiri [OPTIONS] [REPO_PATH] [-k|--kiri [ARGS]
-```
-
-For extended arguments list, please use the flag `-h`.
-
-# Examples
-
-Just launch the container for manual exploration
-
-```bash
-kiri
-```
-
-This example launches kiri (docker), passing the path of the project path and a parameter `-r` of kiri to remove old files.
-
-```bash
-kiri "/home/lheck/Documents/assoc-board" -k -r
-```
-
-This, starts the container with the project folder and do nothing, so you can debug something manually.
-
-```bash
-kiri "/home/lheck/Documents/assoc-board" -d
-```
-
-Launch kiri with a repo that has a nested kicad project (kicad project is not in the root path)
-
-```bash
-kiri "/home/lheck/Documents/assoc-board" -k "nested_project/board.kicad_pro"
-```
-
-Starts docker binding project's repo, do not run kiri, and run pcbdraw command:
-This example uses the image generated with `Dockerfile_kicad-auto`.
-
-```bash
-kiri "/home/lheck/Documents/assoc-board" -i leoheck/kiri:test -d -c "pcbdraw board.kicad_pcb board.svg"
+jobs:
+  kiri:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Kiri
+      uses: usa-reddragon/kiri-github-action@v1
 ```
