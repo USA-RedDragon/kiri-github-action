@@ -2,20 +2,20 @@
 # Latest stable version of Ubuntu, of course
 FROM ubuntu:22.04
 
-LABEL org.opencontainers.image.authors "Leandro Heck <leoheck@gmail.com>"
+LABEL org.opencontainers.image.authors "Leandro Heck <leoheck@gmail.com>, Jacob McSwain <kiri-github-action@mcswain.dev>"
 LABEL org.opencontainers.image.description "Kicad 7 and KiRI"
-LABEL org.opencontainers.image.url "https://hub.docker.com/r/leoheck/kiri/main"
-LABEL org.opencontainers.image.documentation "https://github.com/leoheck/kiri-docker"
+LABEL org.opencontainers.image.url "https://github.com/USA-RedDragon/kiri-github-action/pkgs/container/kiri"
+LABEL org.opencontainers.image.documentation "https://github.com/USA-RedDragon/kiri-github-action"
+LABEL org.opencontainers.image.source "https://github.com/USA-RedDragon/kiri-github-action"
 
 ARG DEBIAN_FRONTEND noninteractive
 ARG DEBCONF_NOWARNINGS="yes"
-ARG TERM 'dumb'
+ENV TERM 'dumb'
 
 RUN apt-get update
 RUN apt-get install -y \
 		sudo \
 		git \
-		zsh \
 		curl \
 		coreutils \
 		software-properties-common \
@@ -49,18 +49,19 @@ RUN apt-get install --no-install-recommends -y kicad && \
 	rm -rf /var/tmp/*
 
 # Create user
-RUN useradd -rm -d "/home/kiri" -s "/usr/bin/zsh" -g root -G sudo -u 1000 kiri -p kiri
+RUN useradd -rm -d "/home/github" -s "$(which bash)" -G sudo -u 1001 -U github
 
 # Run sudo without password
-RUN echo "kiri ALL=(ALL) NOPASSWD:ALL" | tee sudo -a "/etc/sudoers"
+RUN echo "github ALL=(ALL) NOPASSWD:ALL" | tee sudo -a "/etc/sudoers"
 
 # Change current user
-USER kiri
-WORKDIR "/home/kiri"
-ENV USER kiri
+USER github
+WORKDIR "/home/github"
+ENV USER github
+ENV HOME /home/github
 ENV DISPLAY :0
 
-ENV PATH "${PATH}:/home/kiri/.local/bin"
+ENV PATH "${PATH}:/home/github/.local/bin"
 
 # Python dependencies
 RUN yes | pip3 install \
@@ -89,14 +90,11 @@ RUN yes | opam init --disable-sandboxing && \
 	rm -rf ~/.opam/download-cache ;\
 	rm -rf ~/.opam/repo/*
 
-# Oh-my-zsh, please
-RUN zsh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)" || true
-
 # Install kiri, kidiff and plotgitsch
-ADD https://api.github.com/repos/leoheck/kiri/git/refs/heads/main kiri_version.json
-ENV KIRI_HOME "/home/kiri/.local/share/"
-RUN git clone --recurse-submodules -j8 https://github.com/leoheck/kiri.git "${KIRI_HOME}/kiri"
-RUN cd "${KIRI_HOME}/kiri/submodules/plotkicadsch" && \
+ADD https://api.github.com/repos/USA-RedDragon/kiri/git/refs/heads/main kiri_version.json
+ENV KIRI_HOME "/home/github/.local/share/kiri"
+RUN git clone --recurse-submodules -j8 https://github.com/USA-RedDragon/kiri.git "${KIRI_HOME}"
+RUN cd "${KIRI_HOME}/submodules/plotkicadsch" && \
 	opam pin add -y kicadsch . && \
 	opam pin add -y plotkicadsch . && \
 	opam install -y plotkicadsch; \
@@ -104,23 +102,7 @@ RUN cd "${KIRI_HOME}/kiri/submodules/plotkicadsch" && \
 	rm -rf ~/.opam/download-cache ;\
 	rm -rf ~/.opam/repo/*
 
-# Opam configuration
-RUN echo | tee -a "${HOME}/.zshrc"
-RUN echo '# OPAM configuration' | tee -a "${HOME}/.zshrc"
-RUN echo "test -r /home/kiri/.opam/opam-init/init.sh && . /home/kiri/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true" | tee -a "${HOME}/.zshrc"
-
-# KiRI environment
-RUN echo | tee -a "${HOME}/.zshrc"
-RUN echo '# KIRI Environment' | tee -a "${HOME}/.zshrc"
-RUN echo 'export KIRI_HOME=${HOME}/.local/share/kiri' | tee -a "${HOME}/.zshrc"
-RUN echo 'export PATH=${KIRI_HOME}/submodules/KiCad-Diff/bin:${PATH}' | tee -a "${HOME}/.zshrc"
-RUN echo 'export PATH=${KIRI_HOME}/bin:${PATH}' | tee -a "${HOME}/.zshrc"
-
-# Custom commands
-RUN echo | tee -a "${HOME}/.zshrc"
-RUN echo '# Custom Commands' | tee -a "${HOME}/.zshrc"
-RUN echo 'function ip() { awk "/32 host/ { print f } {f=\$2}" /proc/net/fib_trie | sort | uniq | grep -v 127.0.0.1 | head -n1 }' | tee -a "${HOME}/.zshrc"
-RUN echo 'alias kiri="kiri -i \$(ip)"' | tee -a "${HOME}/.zshrc"
+ENV PATH "${KIRI_HOME}/bin:${KIRI_HOME}/submodules/KiCad-Diff/bin:${PATH}"
 
 # Clean unnecessary stuff
 RUN sudo apt-get purge -y \
@@ -138,5 +120,24 @@ RUN sudo rm -rf \
 		/usr/share/man/*
 
 # Initialize Kicad config files to skip default popups of setup
-COPY config "/home/kiri/.config"
-RUN sudo chown -R kiri "/home/kiri/.config"
+COPY config "/home/github/.config"
+RUN sudo chown -R github:github "/home/github/.config"
+
+COPY entrypoint.sh /entrypoint.sh
+RUN sudo chmod a+rx /entrypoint.sh
+
+# GitHub Actions environment variables
+ENV KIRI_PROJECT_FILE ""
+ENV KIRI_OUTPUT_DIR ""
+ENV KIRI_REMOVE ""
+ENV KIRI_ARCHIVE ""
+ENV KIRI_PCB_PAGE_FRAME ""
+ENV KIRI_FORCE_LAYOUT_VIEW ""
+ENV KIRI_SKIP_KICAD6_SCHEMATICS ""
+ENV KIRI_SKIP_CACHE ""
+ENV KIRI_OLDER ""
+ENV KIRI_NEWER ""
+ENV KIRI_LAST ""
+ENV KIRI_ALL ""
+
+ENTRYPOINT ["/entrypoint.sh"]

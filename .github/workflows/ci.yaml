@@ -1,0 +1,114 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'Dockerfile'
+      - 'entrypoint.sh'
+      - 'config/**'
+      - '.github/workflows/ci.yaml'
+    tags:
+    - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set tag name
+        id: tag_name
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+          fi
+      - name: Extract full version from tag, ie refs/tags/v1.2.3 -> v1.2.3
+        id: full_version
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        run: |
+          echo "full_version=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+      # Make sure that the line in `action.yml` similar to docker://ghcr.io/usa-reddragon/kiri:v1.2.3 is updated
+      - name: Update action.yml
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          sed -i "s/docker:\/\/ghcr.io\/usa-reddragon\/kiri:v[0-9]\+\.[0-9]\+\.[0-9]\+/docker:\/\/ghcr.io\/usa-reddragon\/kiri:${{ steps.full_version.outputs.full_version }}/g" action.yml
+      - name: Setup git config
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          git config --local user.name "${GITHUB_ACTOR}"
+      - name: Fail if action.yml was not updated
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          if [ -n "$(git status --porcelain action.yml)" ]; then
+            echo "Failing because action.yml was not updated with the new version"
+            git add action.yml
+            git diff --staged action.yml
+            exit 1
+          fi
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          tags: ghcr.io/usa-reddragon/kiri:${{ steps.tag_name.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Extract minor version from tag, ie v1.2.3 -> v1.2
+        id: minor_version
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        run: |
+          echo "minor_version=${GITHUB_REF#refs/*/}" | sed 's/\.[^.]*$//' >> $GITHUB_OUTPUT
+      - name: Extract major version from tag, ie v1.2.3 -> v1
+        id: major_version
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        run: |
+          echo "major_version=${GITHUB_REF#refs/*/}" | sed 's/\.[^.]*$//' | sed 's/\.[^.]*$//' >> $GITHUB_OUTPUT
+      - name: Build and push minor version
+        uses: docker/build-push-action@v4
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        with:
+          push: true
+          tags: ghcr.io/usa-reddragon/kiri:${{ steps.minor_version.outputs.minor_version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build and push major version
+        uses: docker/build-push-action@v4
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        with:
+          push: true
+          tags: ghcr.io/usa-reddragon/kiri:${{ steps.major_version.outputs.major_version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Re-tag minor and major version
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        run: |
+          git tag -d ${{ steps.minor_version.outputs.minor_version }} || true
+          git tag -d ${{ steps.major_version.outputs.major_version }} || true
+          git push origin :refs/tags/${{ steps.minor_version.outputs.minor_version }} || true
+          git push origin :refs/tags/${{ steps.major_version.outputs.major_version }} || true
+          git tag ${{ steps.minor_version.outputs.minor_version }} ${{ steps.full_version.outputs.full_version }}
+          git tag ${{ steps.major_version.outputs.major_version }} ${{ steps.full_version.outputs.full_version }}
+          git push origin ${{ steps.minor_version.outputs.minor_version }}
+          git push origin ${{ steps.major_version.outputs.major_version }}
+      - name: Create Release
+        id: create_release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        with:
+          tag_name: ${{ steps.full_version.outputs.full_version }}
+          release_name: Release ${{ steps.full_version.outputs.full_version }}
+          draft: false
+          prerelease: false
