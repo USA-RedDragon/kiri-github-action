@@ -11,6 +11,7 @@ on:
       - '.github/workflows/ci.yaml'
     tags:
     - 'v[0-9]+.[0-9]+.[0-9]+'
+  release:
 
 jobs:
   docker:
@@ -40,19 +41,24 @@ jobs:
           tags: ghcr.io/usa-reddragon/kiri:${{ steps.tag_name.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Extract full version from tag, ie refs/tags/v1.2.3 -> v1.2.3
+        id: full_version
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
+        run: |
+          echo "full_version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
       - name: Extract minor version from tag, ie v1.2.3 -> v1.2
         id: minor_version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         run: |
           echo "minor_version=${GITHUB_REF#refs/tags/}" | sed 's/\.[^.]*$//' >> $GITHUB_OUTPUT
       - name: Extract major version from tag, ie v1.2.3 -> v1
         id: major_version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         run: |
           echo "major_version=${GITHUB_REF#refs/tags/}" | sed 's/\.[^.]*$//' | sed 's/\.[^.]*$//' >> $GITHUB_OUTPUT
       - name: Build and push minor version
         uses: docker/build-push-action@v4
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         with:
           push: true
           tags: ghcr.io/usa-reddragon/kiri:${{ steps.minor_version.outputs.minor_version }}
@@ -60,31 +66,51 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Build and push major version
         uses: docker/build-push-action@v4
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         with:
           push: true
           tags: ghcr.io/usa-reddragon/kiri:${{ steps.major_version.outputs.major_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # Also tag the repo with the minor and major version
-      - name: Tag minor version
+      # Make sure that the line in `action.yml` similar to docker://ghcr.io/usa-reddragon/kiri:v1.2.3 is updated
+      - name: Update action.yml
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          sed -i "s/docker:\/\/ghcr.io\/usa-reddragon\/kiri:v[0-9]\+\.[0-9]\+\.[0-9]\+/docker:\/\/ghcr.io\/usa-reddragon\/kiri:${{ steps.full_version.outputs.full_version }}/g" action.yml
+      - name: Setup git config
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
           git config --local user.name "${GITHUB_ACTOR}"
-          git tag -d ${{ steps.minor_version.outputs.minor_version }} || true
-          git tag ${{ steps.minor_version.outputs.minor_version }}
-      - name: Tag major version
+      - name: Commit action.yml if changed
         if: startsWith(github.ref, 'refs/tags/v')
+        id: commit_action
         run: |
-          git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-          git config --local user.name "${GITHUB_ACTOR}"
-          git tag -d ${{ steps.major_version.outputs.major_version }} || true
-          git tag ${{ steps.major_version.outputs.major_version }}
+          if [ -n "$(git status --porcelain action.yml)" ]; then
+            git add action.yml
+            git commit -m "Update action.yml to use ${{ steps.full_version.outputs.full_version }}"
+            echo "changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Re-tag with the action.yml
+        if: startsWith(github.ref, 'refs/tags/v') && steps.commit_action.outputs.changes == 'true'
+        run: |
+          git tag -d ${{ steps.full_version.outputs.full_version }} || true
+          git tag ${{ steps.full_version.outputs.full_version }}
       - name: Push tags
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') && steps.commit_action.outputs.changes == 'true'
         run: |
-          git push --delete origin ${{ steps.minor_version.outputs.minor_version }} || true
-          git push --delete origin ${{ steps.major_version.outputs.major_version }} || true
-          git push origin ${{ steps.minor_version.outputs.minor_version }}
-          git push origin ${{ steps.major_version.outputs.major_version }}
+          git push --delete origin ${{ steps.full_version.outputs.full_version }} || true
+          git push origin ${{ steps.full_version.outputs.full_version }}
+      - name: Create Release
+        id: create_release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.full_version.outputs.full_version }}
+          release_name: Release ${{ steps.full_version.outputs.full_version }}
+          draft: false
+          prerelease: false

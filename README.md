@@ -60,7 +60,3 @@ jobs:
 ## TODOs
 
 - Can we push diff images from the generated files to the PR? Failing that, can we make the generated files browsable from a link in the PR?
-
-## Dev note
-
-Make sure to bump versions by both tagging and in `action.yml`: `uses: docker://ghcr.io/usa-reddragon/kiri:<version>`.
