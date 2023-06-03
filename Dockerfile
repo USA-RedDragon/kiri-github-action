@@ -48,18 +48,18 @@ RUN apt-get install --no-install-recommends -y kicad && \
 	rm -rf /var/tmp/*
 
 # Create user
-RUN useradd -rm -d "/home/kiri" -s "$(which bash)" -g root -G sudo -u 1000 kiri -p kiri
+RUN useradd -rm -d "/github/home" -s "$(which bash)" -g root -G sudo -u 1000 github -p github
 
 # Run sudo without password
-RUN echo "kiri ALL=(ALL) NOPASSWD:ALL" | tee sudo -a "/etc/sudoers"
+RUN echo "github ALL=(ALL) NOPASSWD:ALL" | tee sudo -a "/etc/sudoers"
 
 # Change current user
-USER kiri
-WORKDIR "/home/kiri"
-ENV USER kiri
+USER github
+WORKDIR "/github/home"
+ENV USER github
 ENV DISPLAY :0
 
-ENV PATH "${PATH}:/home/kiri/.local/bin"
+ENV PATH "${PATH}:/github/home/.local/bin"
 
 # Python dependencies
 RUN yes | pip3 install \
@@ -90,7 +90,7 @@ RUN yes | opam init --disable-sandboxing && \
 
 # Install kiri, kidiff and plotgitsch
 ADD https://api.github.com/repos/leoheck/kiri/git/refs/heads/main kiri_version.json
-ENV KIRI_HOME "/home/kiri/.local/share/kiri"
+ENV KIRI_HOME "/github/home/.local/share/kiri"
 RUN git clone --recurse-submodules -j8 https://github.com/leoheck/kiri.git "${KIRI_HOME}"
 RUN cd "${KIRI_HOME}/submodules/plotkicadsch" && \
 	opam pin add -y kicadsch . && \
@@ -118,12 +118,12 @@ RUN sudo rm -rf \
 		/usr/share/man/*
 
 # Initialize Kicad config files to skip default popups of setup
-COPY config "/home/kiri/.config"
-RUN sudo chown -R kiri "/home/kiri/.config"
+COPY config "/github/home/.config"
+RUN sudo chown -R github "/github/home/.config"
 
-COPY entrypoint.sh /home/kiri/entrypoint.sh
-RUN sudo chown -R kiri "/home/kiri/entrypoint.sh"
-RUN chmod +x /home/kiri/entrypoint.sh
+COPY entrypoint.sh /github/home/entrypoint.sh
+RUN sudo chown -R github "/github/home/entrypoint.sh"
+RUN chmod +x /github/home/entrypoint.sh
 
 # GitHub Actions environment variables
 ENV KIRI_PROJECT_FILE ""
@@ -140,8 +140,10 @@ ENV KIRI_LAST ""
 ENV KIRI_ALL ""
 
 # Remove kiri from sudo group
-RUN sudo deluser kiri sudo
+RUN sudo deluser github sudo
 # Remove sudo permissions
-RUN sudo sed -i '/kiri ALL=(ALL) NOPASSWD:ALL/d' "/etc/sudoers"
+RUN sudo sed -i '/github ALL=(ALL) NOPASSWD:ALL/d' "/etc/sudoers"
 
-ENTRYPOINT ["/home/kiri/entrypoint.sh"]
+RUN git config --file /github/home/.gitconfig --add safe.directory /github/workspace
+
+ENTRYPOINT ["/github/home/entrypoint.sh"]
