@@ -36,6 +36,7 @@ jobs:
           else
             echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
           fi
+          cat $GITHUB_OUTPUT
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
