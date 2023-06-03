@@ -32,7 +32,7 @@ jobs:
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
             echo "tag=latest" >> $GITHUB_OUTPUT
           else
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
           fi
       - name: Build and push
         uses: docker/build-push-action@v4
@@ -45,17 +45,17 @@ jobs:
         id: full_version
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         run: |
-          echo "full_version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "full_version=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: Extract minor version from tag, ie v1.2.3 -> v1.2
         id: minor_version
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         run: |
-          echo "minor_version=${GITHUB_REF#refs/tags/}" | sed 's/\.[^.]*$//' >> $GITHUB_OUTPUT
+          echo "minor_version=${GITHUB_REF#refs/*/}" | sed 's/\.[^.]*$//' >> $GITHUB_OUTPUT
       - name: Extract major version from tag, ie v1.2.3 -> v1
         id: major_version
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         run: |
-          echo "major_version=${GITHUB_REF#refs/tags/}" | sed 's/\.[^.]*$//' | sed 's/\.[^.]*$//' >> $GITHUB_OUTPUT
+          echo "major_version=${GITHUB_REF#refs/*/}" | sed 's/\.[^.]*$//' | sed 's/\.[^.]*$//' >> $GITHUB_OUTPUT
       - name: Build and push minor version
         uses: docker/build-push-action@v4
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
