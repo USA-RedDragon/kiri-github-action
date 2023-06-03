@@ -26,6 +26,7 @@ All inputs are **optional**.
 | `project-file`           | Path to the KiCad project file                                           |
 | `extra-args`             | Extra arguments to pass to Kiri                                          |
 | `kiri-debug`             | If set, enable debugging output                                          |
+| `kiri-tag`               | If set, overrides kiri container tag                                     |
 
 ## Examples
 
