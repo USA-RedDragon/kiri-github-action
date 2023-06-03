@@ -38,3 +38,5 @@ jobs:
         with:
           push: true
           tags: ghcr.io/usa-reddragon/kiri:${{ steps.tag_name.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
