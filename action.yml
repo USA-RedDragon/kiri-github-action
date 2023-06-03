@@ -1,0 +1,73 @@
+name: Kiri KiCad Diff Action
+description: An action using Kiri to diff KiCad projects in CI
+inputs:
+  project-file:
+    description: Path to the KiCad project file
+  output-dir:
+    description: Change output folder path/name
+  remove:
+    description: Remove generated folder before running it
+  archive:
+    description: Archive generated files
+  pcb-page-frame:
+    description: Disable page frame for PCB
+  force-layout-view:
+    description: Force starting with the Layout view selected
+  skip-kicad6-schematics:
+    description: Skip ploting Kicad 6 schematics (.kicad.sch)
+  skip-cache:
+    description: Skip usage of -cache.lib on plotgitsch
+  older:
+    description: Show commits starting from this one
+  newer:
+    description: Show commits up to this one
+  last:
+    description: Show last N commits
+  all:
+    description: Include all commits even if schematics/layout don't have changes
+  extra-args:
+    description: Extra arguments to pass to Kiri
+  kiri-debug:
+    description: Enable debug mode for Kiri
+outputs: {}
+runs:
+  using: composite
+  steps:
+  - name: Get number of commits in PR
+    if: github.event_name == 'pull_request'
+    id: pr
+    shell: bash
+    run: |
+      # Set DEFAULT_LAST to the number of commits in the PR if ${{ inputs.last }} is not set. The minimum is 2.
+      if [ -z "${{ inputs.last }}" ]; then
+        # Un-shallow, but don't fail if it's already unshallow
+        git fetch --unshallow || true
+        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+        # Deepen topic branch; checkout topic branch
+        git fetch origin ${{ github.event.pull_request.head.ref }} --depth=$(( ${{ github.event.pull_request.commits }} + 1 ))
+        git checkout ${{ github.event.pull_request.head.ref }}
+        # Fetch main for common origin
+        git fetch origin main:main
+        COUNT=$(git rev-list --count ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+        echo "DEFAULT_LAST=\"${COUNT}\"" >> $GITHUB_ENV
+      else
+        echo "DEFAULT_LAST=\"${{ inputs.last }}\"" >> $GITHUB_ENV
+      fi
+  - name: Run Kiri
+    uses: docker://ghcr.io/usa-reddragon/kiri:latest
+    env:
+      KIRI_PROJECT_FILE: ${{ inputs.project-file }}
+      KIRI_OUTPUT_DIR: ${{ inputs.output-dir }}
+      KIRI_REMOVE: ${{ inputs.remove }}
+      KIRI_ARCHIVE: ${{ inputs.archive }}
+      KIRI_PCB_PAGE_FRAME: ${{ inputs.pcb-page-frame }}
+      KIRI_FORCE_LAYOUT_VIEW: ${{ inputs.force-layout-view }}
+      KIRI_SKIP_KICAD6_SCHEMATICS: ${{ inputs.skip-kicad6-schematics }}
+      KIRI_SKIP_CACHE: ${{ inputs.skip-cache }}
+      KIRI_OLDER: ${{ inputs.older }}
+      KIRI_NEWER: ${{ inputs.newer }}
+      KIRI_LAST: ${{ steps.pr.outputs.DEFAULT_LAST }}
+      KIRI_ALL: ${{ inputs.all }}
+      KIRI_DEBUG: ${{ inputs.kiri-debug }}
+    with:
+      args: ${{ inputs.extra-args }}
