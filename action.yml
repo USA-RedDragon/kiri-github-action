@@ -1,0 +1,137 @@
+name: Kiri KiCad Diff Action
+description: An action using Kiri to diff KiCad projects in CI
+inputs:
+  project-file:
+    description: Path to the KiCad project file
+  output-dir:
+    description: Change output folder path/name
+  remove:
+    description: Remove generated folder before running it
+  archive:
+    description: Archive generated files
+  pcb-page-frame:
+    description: Disable page frame for PCB
+  force-layout-view:
+    description: Force starting with the Layout view selected
+  skip-kicad6-schematics:
+    description: Skip ploting Kicad 6 schematics (.kicad.sch)
+  skip-cache:
+    description: Skip usage of -cache.lib on plotgitsch
+  older:
+    description: Show commits starting from this one
+  newer:
+    description: Show commits up to this one
+  last:
+    description: Show last N commits
+  all:
+    description: Include all commits even if schematics/layout don't have changes
+  extra-args:
+    description: Extra arguments to pass to Kiri
+  kiri-debug:
+    description: Enable debug mode for Kiri
+outputs: {}
+runs:
+  using: composite
+  steps:
+  - name: Get number of commits in PR
+    if: github.event_name == 'pull_request'
+    id: pr
+    shell: bash
+    run: |
+      # Set DEFAULT_LAST to the number of commits in the PR if ${{ inputs.last }} is not set. The minimum is 2.
+      if [ -z "${{ inputs.last }}" ]; then
+        # Un-shallow, but don't fail if it's already unshallow
+        git fetch --unshallow || true
+        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+        # Deepen topic branch; checkout topic branch
+        git fetch origin ${{ github.event.pull_request.head.ref }} --depth=$(( ${{ github.event.pull_request.commits }} + 1 ))
+        git checkout ${{ github.event.pull_request.head.ref }}
+        # Fetch main for common origin
+        git fetch origin main:main
+        COUNT=$(git rev-list --count ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+        echo "DEFAULT_LAST=\"${COUNT}\"" >> $GITHUB_ENV
+      else
+        echo "DEFAULT_LAST=\"${{ inputs.last }}\"" >> $GITHUB_ENV
+      fi
+  - name: Run Kiri
+    uses: docker://ghcr.io/usa-reddragon/kiri:v1.0.21
+    env:
+      KIRI_PROJECT_FILE: ${{ inputs.project-file }}
+      KIRI_OUTPUT_DIR: ${{ inputs.output-dir }}
+      KIRI_REMOVE: ${{ inputs.remove }}
+      KIRI_ARCHIVE: ${{ inputs.archive }}
+      KIRI_PCB_PAGE_FRAME: ${{ inputs.pcb-page-frame }}
+      KIRI_FORCE_LAYOUT_VIEW: ${{ inputs.force-layout-view }}
+      KIRI_SKIP_KICAD6_SCHEMATICS: ${{ inputs.skip-kicad6-schematics }}
+      KIRI_SKIP_CACHE: ${{ inputs.skip-cache }}
+      KIRI_OLDER: ${{ inputs.older }}
+      KIRI_NEWER: ${{ inputs.newer }}
+      KIRI_LAST: ${{ steps.pr.outputs.DEFAULT_LAST }}
+      KIRI_ALL: ${{ inputs.all }}
+      KIRI_DEBUG: ${{ inputs.kiri-debug }}
+      KIRI_TAG: ${{ inputs.kiri-tag }}
+    with:
+      args: ${{ inputs.extra-args }}
+  - name: Upload Kiri custom output
+    uses: actions/upload-artifact@v2
+    if: inputs.output-dir != ''
+    with:
+      name: kiri-output
+      path: ${{ inputs.output-dir }}
+  - name: Get Kiri output directory
+    id: kiri-output
+    if : inputs.output-dir == ''
+    shell: bash
+    run: |
+      # If output-dir is not set, the output directory is in the same folder as the project file, in the folder .kiri
+      # If the project file is not set, the output directory is simply .kiri
+      if [ -z "${{ inputs.project-file }}" ]; then
+        echo "output-dir=.kiri" >> $GITHUB_OUTPUT
+      else
+        echo "output-dir=$(dirname ${{ inputs.project-file }})/.kiri" >> $GITHUB_OUTPUT
+      fi
+  - name: Upload Kiri output
+    uses: actions/upload-artifact@v2
+    if: inputs.output-dir == ''
+    with:
+      name: kiri-output
+      path: ${{ steps.kiri-output.outputs.output-dir }}
+  - name: Checkout gh-pages branch
+    if: github.event_name == 'pull_request'
+    uses: actions/checkout@v3
+    with:
+      ref: gh-pages
+      fetch-depth: 0
+      path: gh-pages
+  - name: Setup git config for gh-pages branch
+    shell: bash
+    run: |
+      cd gh-pages
+      git config --local user.email github-actions@github.com
+      git config --local user.name github-actions
+  - name: Copy the output to a subdirectory of the gh-pages branch
+    if: github.event_name == 'pull_request'
+    shell: bash
+    run: |
+      rm -rf gh-pages/pr-previews/${{ github.event.pull_request.number }}
+      mkdir -p gh-pages/pr-previews/${{ github.event.pull_request.number }}
+      cp -r ${{ steps.kiri-output.outputs.output-dir }}/* gh-pages/pr-previews/${{ github.event.pull_request.number }}
+  - name: Commit and push the changes
+    if: github.event_name == 'pull_request'
+    shell: bash
+    id: commit
+    run: |
+      cd gh-pages
+      git add -A
+      git commit -m "Update Kiri output for PR #${{ github.event.pull_request.number }}"
+      git push origin gh-pages
+      echo "repository_name=${REPO##*/}" >> $GITHUB_ENV
+    env:
+      REPO: ${{ github.repository }}
+  - name: Create a comment with the link to the output
+    if: github.event_name == 'pull_request'
+    uses: peter-evans/create-or-update-comment@v1
+    with:
+      issue-number: ${{ github.event.pull_request.number }}
+      body: |
+        Kiri diff output is available at https://${{ github.repository_owner }}.github.io/${{ steps.commit.outputs.repository_name }}/pr-previews/${{ github.event.pull_request.number }}
