@@ -70,7 +70,7 @@ runs:
   - name: Run Kiri
     # The __KIRI VERSION__ below will be replaced by the semver version of the action
     # This is done by the release action and propagated to the tags
-    uses: docker://ghcr.io/usa-reddragon/kiri:__KIRI_VERSION__
+    uses: docker://ghcr.io/usa-reddragon/kiri:v1.0.30
     if: github.event_name == 'pull_request' && github.event.action != 'closed' && steps.kicad-files.outputs.changed == 'true'
     env:
       KIRI_PROJECT_FILE: ${{ inputs.project-file }}
