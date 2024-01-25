@@ -148,7 +148,7 @@ runs:
       REPO: ${{ github.repository }}
   - name: Create a comment with the link to the output
     if: github.event_name == 'pull_request' && github.event.action != 'closed' && steps.kicad-files.outputs.changed == 'true'
-    uses: peter-evans/create-or-update-comment@v1
+    uses: peter-evans/create-or-update-comment@v4
     with:
       issue-number: ${{ github.event.pull_request.number }}
       body: |
@@ -175,7 +175,7 @@ runs:
       git push origin gh-pages
   - name: Create a comment on the PR
     if: steps.delete.outputs.deleted == 'true' && github.event_name == 'pull_request' && github.event.action == 'closed'
-    uses: peter-evans/create-or-update-comment@v1
+    uses: peter-evans/create-or-update-comment@v4
     with:
       issue-number: ${{ github.event.pull_request.number }}
       body: |
