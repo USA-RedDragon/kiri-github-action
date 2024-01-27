@@ -60,7 +60,7 @@ jobs:
           git tag ${{ steps.full_version.outputs.full_version }}
           git push origin ${{ steps.full_version.outputs.full_version }}
       - name: Build and push
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           push: true
           tags: ghcr.io/usa-reddragon/kiri:${{ steps.tag_name.outputs.tag }}
@@ -77,7 +77,7 @@ jobs:
         run: |
           echo "major_version=${GITHUB_REF#refs/*/}" | sed 's/\.[^.]*$//' | sed 's/\.[^.]*$//' >> $GITHUB_OUTPUT
       - name: Build and push minor version
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         with:
           push: true
@@ -85,7 +85,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build and push major version
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         with:
           push: true
