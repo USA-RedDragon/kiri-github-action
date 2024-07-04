@@ -31,7 +31,7 @@ jobs:
         tags: ghcr.io/${{ github.repository_owner }}/kiri:${{ github.sha }}
     - name: Modify action.yml to use local image
       run: |
-        sed -i "s#ghcr.io/${{ github.repository_owner }}/kiri:__KIRI_VERSION__#ghcr.io/${{ github.repository_owner }}/kiri-ci:${{ github.sha }}#g" action.yml
+        sed -i "s#ghcr.io/${{ github.repository_owner }}/kiri:__KIRI_VERSION__#ghcr.io/${{ github.repository_owner }}/kiri:${{ github.sha }}#g" action.yml
     # Action testing
     - name: Clone SnekSafe for testing
       uses: actions/checkout@v4
@@ -52,4 +52,4 @@ jobs:
     - name: Delete ci image from GHCR
       if: always()
       run: |
-        curl -X DELETE -H "Accept: application/vnd.github.v3+json" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/${{ github.repository_owner }}/kiri-ci/packages/container/kiri-ci/versions/${{ github.sha }}
+        curl -X DELETE -H "Accept: application/vnd.github.v3+json" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/${{ github.repository_owner }}/kiri/packages/container/kiri/versions/${{ github.sha }}
