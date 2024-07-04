@@ -1,6 +1,6 @@
 
 # Latest stable version of Ubuntu, of course
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors "Leandro Heck <leoheck@gmail.com>, Jacob McSwain <kiri-github-action@mcswain.dev>"
 LABEL org.opencontainers.image.description "Kicad 7 and KiRI"
@@ -40,7 +40,7 @@ RUN apt-get install -y \
 	rm -rf /var/tmp/*
 
 # Install latest Kicad
-RUN add-apt-repository -y ppa:kicad/kicad-7.0-releases
+RUN add-apt-repository -y ppa:kicad/kicad-8.0-releases
 RUN apt-get install --no-install-recommends -y kicad && \
 	apt-get purge -y \
 		software-properties-common ;\
