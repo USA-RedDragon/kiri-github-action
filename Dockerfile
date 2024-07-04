@@ -67,7 +67,6 @@ ENV PATH "${PATH}:/home/github/.local/bin"
 RUN yes | pip3 install \
 		"pillow>8.2.0" \
 		"six>=1.15.0" \
-		"python_dateutil>=2.8.1" \
 		"pytz>=2021.1" \
 		"pathlib>=1.0.1" && \
 	pip3 cache purge
