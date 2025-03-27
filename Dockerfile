@@ -8,7 +8,7 @@ LABEL org.opencontainers.image.url "https://github.com/USA-RedDragon/kiri-github
 LABEL org.opencontainers.image.documentation "https://github.com/USA-RedDragon/kiri-github-action"
 LABEL org.opencontainers.image.source "https://github.com/USA-RedDragon/kiri-github-action"
 
-ARG DEBIAN_FRONTEND noninteractive
+ARG DEBIAN_FRONTEND=noninteractive
 ARG DEBCONF_NOWARNINGS="yes"
 ENV TERM 'dumb'
 
