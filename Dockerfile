@@ -3,7 +3,7 @@
 FROM ubuntu:24.04
 
 LABEL org.opencontainers.image.authors "Leandro Heck <leoheck@gmail.com>, Jacob McSwain <kiri-github-action@mcswain.dev>"
-LABEL org.opencontainers.image.description "Kicad 7 and KiRI"
+LABEL org.opencontainers.image.description "Kicad 9 and KiRI"
 LABEL org.opencontainers.image.url "https://github.com/USA-RedDragon/kiri-github-action/pkgs/container/kiri"
 LABEL org.opencontainers.image.documentation "https://github.com/USA-RedDragon/kiri-github-action"
 LABEL org.opencontainers.image.source "https://github.com/USA-RedDragon/kiri-github-action"
@@ -40,7 +40,7 @@ RUN apt-get install -y \
 	rm -rf /var/tmp/*
 
 # Install latest Kicad
-RUN add-apt-repository -y ppa:kicad/kicad-7.0-releases
+RUN add-apt-repository -y ppa:kicad/kicad-9.0-releases
 RUN apt-get install --no-install-recommends -y kicad && \
 	apt-get purge -y \
 		software-properties-common ;\
