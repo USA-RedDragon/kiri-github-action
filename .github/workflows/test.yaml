@@ -38,6 +38,7 @@ jobs:
       with:
         repository: USA-RedDragon/SnekSafe
         path: SnekSafe
+        fetch-depth: 0
     - name: Test Local Action
       uses: ./
       with:
