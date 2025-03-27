@@ -65,6 +65,7 @@ ENV PATH "${PATH}:/home/github/.local/bin"
 
 # Python dependencies
 RUN yes | pip3 install \
+		--break-system-packages \
 		"pillow>8.2.0" \
 		"six>=1.15.0" \
 		"python_dateutil>=2.8.1" \
