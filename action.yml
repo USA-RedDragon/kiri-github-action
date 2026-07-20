@@ -115,7 +115,7 @@ runs:
       path: ${{ steps.kiri-output.outputs.output-dir }}
   - name: Checkout gh-pages branch
     if: github.event_name == 'pull_request'
-    uses: actions/checkout@v4
+    uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
     with:
       ref: gh-pages
       fetch-depth: 0
