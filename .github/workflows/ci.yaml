@@ -18,13 +18,13 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -62,7 +62,7 @@ jobs:
           git tag ${{ steps.full_version.outputs.full_version }}
           git push origin ${{ steps.full_version.outputs.full_version }}
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           push: true
           tags: ghcr.io/usa-reddragon/kiri:${{ steps.tag_name.outputs.tag }}
@@ -79,7 +79,7 @@ jobs:
         run: |
           echo "major_version=${GITHUB_REF#refs/*/}" | sed 's/\.[^.]*$//' | sed 's/\.[^.]*$//' >> $GITHUB_OUTPUT
       - name: Build and push minor version
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         with:
           push: true
@@ -87,7 +87,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build and push major version
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
         with:
           push: true
@@ -108,7 +108,7 @@ jobs:
       - name: Create Release
         id: create_release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/create-release@v1
+        uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e # v1
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
@@ -118,7 +118,7 @@ jobs:
           prerelease: false
       - name: Create Issue on Failure
         if: failure() && startsWith(github.ref, 'refs/tags/v')
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
