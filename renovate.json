@@ -3,5 +3,5 @@
     "extends": [
         "local>USA-RedDragon/renovate-configs"
     ],
-    "includeForks": true
+    "forkProcessing": "enabled"
 }
